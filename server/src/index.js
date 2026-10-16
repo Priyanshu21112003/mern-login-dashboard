@@ -8,20 +8,25 @@ import rateLimit from 'express-rate-limit';
 import authRoutes from './routes/auth.js';
 import dashboardRoutes from './routes/dashboard.js';
 import adminRoutes from './routes/admin.js';
+import workspaceRoutes from './routes/workspace.js';
 
 const app = express();
-const port = Number(process.env.PORT || 5000);
-const clientOrigin = process.env.CLIENT_ORIGIN || 'http://localhost:5173';
+const port = Number(process.env.PORT || 5002);
+const clientOrigin = process.env.CLIENT_ORIGIN || 'http://localhost:5175';
 
 if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
   console.error('JWT_SECRET must be set to a random secret of at least 32 characters.');
+  process.exit(1);
+}
+if (!process.env.MONGODB_URI) {
+  console.error('MONGODB_URI is required.');
   process.exit(1);
 }
 
 app.disable('x-powered-by');
 app.set('trust proxy', process.env.NODE_ENV === 'production' ? 1 : false);
 app.use(helmet());
-app.use(cors({ origin: clientOrigin, credentials: true, methods: ['GET', 'POST', 'PATCH'], allowedHeaders: ['Content-Type'] }));
+app.use(cors({ origin: clientOrigin, credentials: true, methods: ['GET', 'POST', 'PATCH', 'DELETE'], allowedHeaders: ['Content-Type'] }));
 app.use(express.json({ limit: '10kb' }));
 app.use(cookieParser());
 app.use((req, res, next) => {
@@ -36,26 +41,17 @@ app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
 app.use('/api/auth', rateLimit({ windowMs: 15 * 60 * 1000, limit: 100, standardHeaders: 'draft-7', legacyHeaders: false }), authRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/workspace', workspaceRoutes);
 app.use((req, res) => res.status(404).json({ message: 'Route not found.' }));
 app.use((error, _req, res, _next) => {
   console.error(error);
   res.status(500).json({ message: 'Something went wrong. Please try again.' });
 });
 
-
-if (process.env.MONGODB_URI) {
-  try {
-    await mongoose.connect(process.env.MONGODB_URI);
-    console.log('Connected to MongoDB.');
-  } catch (error) {
-    console.error('Could not connect to MongoDB:', error.message);
-    process.exit(1);
-  }
-} else {
-  console.log('Starting without MongoDB (development mode).');
+try {
+  await mongoose.connect(process.env.MONGODB_URI);
+  app.listen(port, () => console.log(`API server listening on http://localhost:${port}`));
+} catch (error) {
+  console.error('Could not connect to MongoDB:', error.message);
+  process.exit(1);
 }
-
-app.listen(port, () => {
-  console.log(`API server listening on http://localhost:${port}`);
-});
-
