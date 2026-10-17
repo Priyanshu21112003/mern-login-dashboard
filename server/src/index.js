@@ -11,7 +11,6 @@ import adminRoutes from './routes/admin.js';
 import workspaceRoutes from './routes/workspace.js';
 
 const app = express();
-app.set('trust proxy', 1);
 const port = Number(process.env.PORT || 5002);
 const clientOrigin = process.env.CLIENT_ORIGIN || 'http://localhost:5175';
 
