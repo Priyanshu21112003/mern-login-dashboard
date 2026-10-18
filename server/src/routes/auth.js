@@ -13,13 +13,17 @@ const CODE_TTL_MS = 10 * 60 * 1000;
 const MAX_CODE_ATTEMPTS = 5;
 const RESEND_COOLDOWN_MS = 60 * 1000;
 const hashCode = code => createHash('sha256').update(String(code)).digest('hex');
-const cookieOptions = () => ({
-  httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-  path: '/',
-  maxAge: 7 * 24 * 60 * 60 * 1000
-});function issueSession(user, res) {
+const cookieOptions = () => {
+  const isProduction = process.env.NODE_ENV === 'production';
+
+  return {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax',
+    path: '/',
+    maxAge: 7 * 24 * 60 * 60 * 1000
+  };
+};function issueSession(user, res) {
   const token = jwt.sign({ sub: user._id.toString() }, process.env.JWT_SECRET, { algorithm: 'HS256', expiresIn: '7d', issuer: 'mern-login-dashboard', audience: 'dashboard-client' });
   res.cookie('session', token, cookieOptions());
 }
@@ -135,6 +139,8 @@ router.post('/login', async (req, res, next) => {
   } catch (error) { next(error); }
 });
 
+
+
 router.post('/logout', (req, res) => {
   res.clearCookie('session', {
     httpOnly: true,
@@ -143,8 +149,11 @@ router.post('/logout', (req, res) => {
     path: '/'
   });
 
-  res.json({ message: 'Logged out successfully.' });
+  return res.json({ message: 'Logged out successfully.' });
 });
+
+
+
 router.get('/me', requireAuth, (req, res) => {
   if (!req.user.emailVerified) return res.status(403).json({ message: 'Please verify your email before signing in.', needsVerification: true, email: req.user.email });
   return res.json({ user: safeUser(req.user) });
